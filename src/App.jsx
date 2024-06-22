@@ -6,6 +6,7 @@ import Register from './Auth/Register';
 import Login from './Auth/Login';
 import Reset from './Auth/Reset';
 import Dashboard from './Pages/Dashboard';
+import DashboardReact from './Pages/DashboardReact';
 import { useAuth } from './Contexts/AuthContext';
 
 const App = () => {
@@ -43,7 +44,7 @@ const App = () => {
         <Route
           path="/dashboard"
           element={
-            isAuthenticated ? <Dashboard /> : <Navigate to="/login" />
+            isAuthenticated ? <DashboardReact /> : <Navigate to="/login" />
           }
         />
       </Routes>
