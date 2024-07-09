@@ -1,5 +1,6 @@
 import LogoutButton from '../Components/LogoutButton'
 import MapRender from '../Components/MapRender'
+import Weather from '../Components/Weather';
 
 const Dashboard = () => {
 
@@ -8,6 +9,7 @@ const Dashboard = () => {
     <>
         <MapRender/>
         <LogoutButton/>
+        <Weather/>
     </>
   );
 };
