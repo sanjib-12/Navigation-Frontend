@@ -11,10 +11,13 @@ const LocationForm = ({ onCalculate }) => {
   const initialLocationRef = useRef(null);
   const finalLocationRef = useRef(null);
 
+
+
   const handleSubmit = () => {
     form.validateFields().then((values) => {
       if (initialLocationRef.current && finalLocationRef.current) {
         onCalculate(initialLocationRef.current, finalLocationRef.current, values.mode);
+        console.log(initialAutocompleteRef.current, finalAutocompleteRef.current)
       } else {
         message.error('Please select valid initial and final locations.');
       }
@@ -47,6 +50,10 @@ const LocationForm = ({ onCalculate }) => {
     } else {
       message.error('Please select a valid place from the suggestions.');
     }
+    console.log('this is from place')
+    console.log(place.formatted_address)
+    console.log(place)
+    console.log('this is from place')
   };
 
   return (
@@ -98,12 +105,14 @@ const LocationForm = ({ onCalculate }) => {
         </Form.Item>
         <Form.Item>
           <Button type="primary" onClick={handleSubmit}>
-            Calculate Route
+            Show Route
           </Button>
         </Form.Item>
       </Form>
     </div>
   );
 };
+
+
 
 export default LocationForm;
