@@ -107,7 +107,7 @@ export const getHistoryData = async () => {
     throw error;
   }
 };
-
+  
 
 const getAddressFromCoordinates = (lat, lng) => {
   return new Promise((resolve, reject) => {

@@ -29,9 +29,11 @@ const MapRender = () => {
   const [showCard, setShowCard] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
+  const [isBlinking, setIsBlinking] = useState(false);
   const mapRef = useRef(null);
   const [directionsRenderer, setDirectionsRenderer] = useState(null);
   const watchIdRef = useRef(null);
+  const [isDrivingMode, setIsDrivingMode] = useState(false);
 
   const locationInfo = useRef({
     finalLocation: { lat: 0, lng: 0 },
@@ -60,6 +62,20 @@ const MapRender = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let intervalId;
+    if (isTracking) {
+      intervalId = setInterval(() => {
+        setIsBlinking(prev => !prev);
+      }, 500); // Blink every 500ms
+    } else {
+      setIsBlinking(false);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isTracking]);
+
   const handleCalculateRoute = useCallback((initialLocation, finalLocation, mode) => {
     locationInfo.current = { finalLocation, initialLocation };
     if (directionsRenderer) {
@@ -69,6 +85,7 @@ const MapRender = () => {
     calculateRoute(initialLocation, finalLocation, mode, setDirections, setTravelTime, setTravelDistance);
     setShowCard(true);
     setIsTracking(false);
+    setIsDrivingMode(mode === 'DRIVING');
   }, [directionsRenderer]);
 
   const handleCloseCard = () => {
@@ -85,67 +102,68 @@ const MapRender = () => {
     }
   };
 
+  const handleUberClick = () => {
+    const uberWebLink = `https://www.uber.com/ca/en/`;
+    window.open(uberWebLink, '_blank');
+  };
+  
+  const handleLyftClick = () => {
+    const lyftWebLink = `https://www.lyft.com/`;
+    window.open(lyftWebLink, '_blank');
+  };
+
   const handleStartTracking = () => {
-    //sendHistoryData(locationInfo.current, travelTime, travelDistance);
+    sendHistoryData(locationInfo.current, travelTime, travelDistance);
     setIsTracking(true);
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newPosition = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setCurrentPosition(newPosition);
-          if (mapRef.current) {
-            mapRef.current.panTo(newPosition);
-          }
-          watchIdRef.current = navigator.geolocation.watchPosition(
-            (position) => {
-              const newPosition = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-              };
-              setCurrentPosition(newPosition);
-              if (mapRef.current) {
-                mapRef.current.panTo(newPosition);
-              }
-            },
-            (error) => {
-              console.error("Error in tracking location: ", error);
-              message.error("Unable to track location continuously. Using last known position.");
-            },
-            {
-              enableHighAccuracy: true,
-              timeout: 5000,
-              maximumAge: 0,
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 25000, // Increased timeout to 10 seconds
+        maximumAge: 0
+      };
+  
+      const watchPosition = () => {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (position) => {
+            const newPosition = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            setCurrentPosition(newPosition);
+            if (mapRef.current) {
+              mapRef.current.panTo(newPosition);
             }
-          );
-        },
-        (error) => {
-          console.error("Error getting initial location: ", error);
-          let errorMessage = "Unable to get location. ";
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage += "Location permission denied.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage += "Location information unavailable.";
-              break;
-            case error.TIMEOUT:
-              errorMessage += "Location request timed out.";
-              break;
-            default:
-              errorMessage += "An unknown error occurred.";
+          },
+          (error) => {
+            console.error("Error in tracking location: ", error);
+            if (error.code === error.TIMEOUT) {
+             // message.warning("Location update timed out. Retrying...");
+              // Clear the current watch and try again
+              navigator.geolocation.clearWatch(watchIdRef.current);
+              watchPosition();
+            } else {
+              //message.error("Unable to track location continuously. Using last known position.");
+              setIsTracking(false);
+            }
+          },
+          options
+        );
+      };
+  
+      // Start watching position
+      watchPosition();
+  
+      // Fallback: If we don't get a location update within 15 seconds, use the last known position
+      setTimeout(() => {
+        if (!currentPosition) {
+          //message.warning("Unable to get current location. Using last known position.");
+          setCurrentPosition(mapCenter);
+          if (mapRef.current) {
+            mapRef.current.panTo(mapCenter);
           }
-          message.error(errorMessage);
-          setIsTracking(false);
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 60000,
         }
-      );
+      }, 15000);
+  
     } else {
       message.error("Geolocation is not supported by this browser.");
       setIsTracking(false);
@@ -167,9 +185,36 @@ const MapRender = () => {
           onLoad={(map) => (mapRef.current = map)}
         >
           <LocationForm onCalculate={handleCalculateRoute} />
+
+          {/* <MarkerF 
+            position={currentPosition || mapCenter}
+            icon={markerIcon}
+            animation={isTracking ? window.google.maps.Animation.BOUNCE : null}
+          /> */}
           
-          {!isTracking && <MarkerF position={mapCenter} />}
-          {isTracking && currentPosition && <MarkerF position={currentPosition} />}
+          {!isTracking && <MarkerF 
+              position={mapCenter} 
+              label={{
+                text: "ME",
+                color: "Black",
+                fontSize: "14px",
+                fontWeight: "bold",
+              }} 
+            />
+          }
+          {isTracking && currentPosition && (
+            <MarkerF 
+              position={currentPosition}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 12,
+                fillColor: isBlinking ? 'blue' : 'green',
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: 'white',
+              }}
+            />
+          )}
 
           {showCard && travelTime && (
             <Card
@@ -193,6 +238,16 @@ const MapRender = () => {
               >
                 {isTracking ? 'Tracking...' : 'Start'}
               </Button>
+              {isDrivingMode && (
+                <div style={{ marginTop: '10px' }}>
+                  <Button onClick={handleUberClick} style={{ marginRight: '10px' }}>
+                     Uber
+                  </Button>
+                  <Button onClick={handleLyftClick}>
+                    Lyft
+                  </Button>
+                </div>
+              )}
             </Card>
           )}
         </GoogleMap>
